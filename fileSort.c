@@ -4,8 +4,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-// TODO: Sorting comparators and testing.
+// TODO:
+// - Sorting comparators and testing.
+// - Wrap `malloc` with error handling.
 
+// 🦾 Sorting prototypes
+typedef int (*Comparator)(void*, void*);
+
+void insertion_sort(void*, Comparator);
+void selection_sort(void*, Comparator);
+void quicksort(void*, Comparator);
+
+// 📔 Linked List declarations
 typedef struct Node Node;
 typedef union Data Data;
 
@@ -21,6 +31,12 @@ typedef struct Node {
   struct Node* next;
 } Node;
 
+// 🧩 Sorting implementations
+void insertion_sort(void* list, Comparator cmpr) {}
+void selection_sort(void* list, Comparator cmpr) {}
+void quicksort(void* list, Comparator cmpr) {}
+
+// 🔧 Linked List utilities
 Node* create_str_node(char* str_data) {
   Node* node = malloc(sizeof(struct Node));
   node->data = (Data)str_data;
