@@ -68,7 +68,7 @@ int string_compare(void* s1, void* s2) {
   }
 
   return *(char*)s1 ? tolower(*(char*)s1) : tolower(*(char*)s2);
-}c
+}
 
 int string_compare_node(void* s1, void* s2) {
   return string_compare(((Node*)s1)->data.str_data, ((Node*)s2)->data.str_data);
