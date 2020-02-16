@@ -7,11 +7,8 @@
 #include <unistd.h>
 
 // TODO:
-// - So we're supposed to write quicksort for linked lists?
-// - Sorting comparators and testing.
+// - Testing.
 // - Wrap `malloc` with error handling.
-// - Add fatal errors.
-// - Flags, etc.
 
 // 🌍 Globals
 int file_desc;
@@ -21,17 +18,28 @@ typedef int (*Comparator)(void*, void*);
 typedef struct Node Node;
 typedef union Data Data;
 
-typedef struct {
-  int is_str;
-  Node* ll;
-} ReadOut;
-
-Node* insertion_sort(void*, Comparator);
-Node* quicksort(void*, Comparator);
+void insertion_sort(void*, Comparator);
+void quicksort(void*, Comparator);
 void deallocate();
+Node* append_list(Node*, Node*);
+void print_list(Node*, int);
+
+// 📔 Linked List declarations
+union Data {
+  int int_data;
+  char* str_data;
+  char char_data;
+};
+
+struct Node {
+  Data data;
+  struct Node* next;
+};
 
 // 👥 Comparators
-int int_compare(void* i1, void* i2) { return (*(int*)i1) - *((int*)i2); }
+int int_compare_node(void* s1, void* s2) {
+  return ((Node*)s1)->data.int_data - ((Node*)s2)->data.int_data;
+}
 
 int string_compare(void* s1, void* s2) {
   if (s1 == NULL && s2 == NULL) {
@@ -60,6 +68,10 @@ int string_compare(void* s1, void* s2) {
   }
 
   return *(char*)s1 ? *(char*)s1 : *(char*)s2;
+}
+
+int string_compare_node(void* s1, void* s2) {
+  return string_compare(((Node*)s1)->data.str_data, ((Node*)s2)->data.str_data);
 }
 
 // 🧶 String helper functions
@@ -92,26 +104,17 @@ void fatalError(char* err_str) {
   exit(0);
 }
 
-void error(char* err_str) { printf("%s", concat("😟 [Error] ", err_str)); }
+void error(char* err_str) { printf("%s", concat("😟 [Error]: ", err_str)); }
 
-void warning(char* warn_str) { printf("%s", concat("😕 [Warning] ", warn_str)); }
-
-// 📔 Linked List declarations
-union Data {
-  int int_data;
-  char* str_data;
-  char char_data;
-  Node* list;
-};
-
-struct Node {
-  Data data;
-  struct Node* next;
-};
+void warning(char* warn_str) {
+  printf("%s", concat("😕 [Warning]: ", warn_str));
+}
 
 // 🧩 Sorting implementations
-// TODO: They all must be in-place?
-Node* insertion_sort(void* list, Comparator cmpr) {
+void insertion_sort(void* out, Comparator cmpr) {
+  Node** _out = (Node**)out;
+  Node* list = *_out;
+
   Node* curr_node = (Node*)list;
   Node* prev_node = NULL;
 
@@ -120,7 +123,7 @@ Node* insertion_sort(void* list, Comparator cmpr) {
     Node* prev = NULL;
 
     while (ptr != curr_node) {
-      if (cmpr(curr_node, ptr) < 0) {
+      if (cmpr(curr_node, ptr) <= 0) {
         prev_node->next = curr_node->next;
 
         if (prev != NULL) {
@@ -131,7 +134,7 @@ Node* insertion_sort(void* list, Comparator cmpr) {
           list = curr_node;
         }
 
-        curr_node = prev_node->next;
+        curr_node = prev_node;
         break;
       }
 
@@ -143,40 +146,47 @@ Node* insertion_sort(void* list, Comparator cmpr) {
     curr_node = curr_node->next;
   }
 
-  return list;
+  *_out = list;
 }
 
-// // TODO: Remove "appending" etc. Since it is a void function,
-// // you must physically move the data.
-// // Update: You either need a double pointer or a Node* in the
-// // return signature
-// void quicksort(void* list, Comparator cmpr) {
-//   // 1. Partition
-//   Node* pivot = (Node*) list;
-//   Node* rest = pivot->next;
+void quicksort(void* out, Comparator cmpr) {
+  Node** _out = (Node**)out;
+  Node* list = *_out;
 
-//   Node* lte = NULL;
-//   Node* gt = NULL;
+  if (list == NULL || list->next == NULL) {
+    return;
+  }
 
-//   while (rest != null) {
-//     Node*next = rest->next;
-//     rest->next = NULL;
+  // 1. Divide
+  Node* pivot = (Node*)list;
+  Node* rest = pivot->next;
 
-//     if (cmpr(rest, pivot) <= 0) {
-//       lte = append(lte, rest);
-//     }  else {
-//       gt = append(gt, rest);
-//     }
+  pivot->next = NULL;
+  Node* lte = NULL;
+  Node* gt = NULL;
 
-//     rest = rest->next;
-//   }
+  while (rest != NULL) {
+    Node* next = rest->next;
+    rest->next = NULL;
 
-//   // lte
-//   quicksort(lte, cmpr);
+    if (cmpr(rest, pivot) <= 0) {
+      lte = append_list(lte, rest);
+    } else {
+      gt = append_list(gt, rest);
+    }
 
-//   // gt
-//   quicksort(gt, cmpr);
-// }
+    rest = next;
+  }
+
+  // 2. Conquer
+  quicksort(&lte, cmpr);
+  quicksort(&gt, cmpr);
+
+  *_out = append_list(lte, append_list(pivot, gt));
+
+  // 3. Combine
+  // Nothing
+}
 
 // 🔧 Linked List utilities
 Node* create_str_node(char* str_data) {
@@ -188,14 +198,14 @@ Node* create_str_node(char* str_data) {
 
 Node* create_char_node(int char_data) {
   Node* node = malloc(sizeof(struct Node));
-  node->data = (Data)char_data;
+  node->data.char_data = char_data;
   node->next = NULL;
   return node;
 };
 
 Node* create_int_node(int int_data) {
   Node* node = malloc(sizeof(struct Node));
-  node->data = (Data)int_data;
+  node->data.int_data = int_data;
   node->next = NULL;
   return node;
 };
@@ -215,11 +225,20 @@ int get_list_size(Node* head) {
   return count;
 }
 
-void print_list(Node* head) {
+void print_list(Node* head, int is_str) {
   while (head != NULL) {
-    printf("%s\n", head->data.str_data);
+    if (is_str) {
+      printf("%s", head->data.str_data);
+    } else {
+      printf("%d", head->data.int_data);
+    }
+
     head = head->next;
+    if (head != NULL) {
+      printf(" => ");
+    }
   }
+  printf("\n");
 }
 
 // 🛹 Convenience functions
@@ -231,7 +250,7 @@ int is_separator(char c) { return c == ','; }
 
 char* str_from_list(Node* head) {
   int size = get_list_size(head);
-  char* str = malloc(sizeof(char) * size);
+  char* str = malloc(sizeof(char) * size + 1);
 
   int curr = 0;
   while (head != NULL) {
@@ -243,23 +262,30 @@ char* str_from_list(Node* head) {
   return str;
 }
 
-ReadOut* read_file_to_list(int file_descriptor) {
+typedef struct {
+  int is_str;
+  Node* list;
+} ReadFileOutput;
+
+ReadFileOutput* read_file_to_list(int file_descriptor) {
   int total_bytes_read = 0;
 
   Node* list_of_items = NULL;
   Node* item_tmp_chars = NULL;
 
+  int is_all_str = 1;
+  int is_first = 1;
+
   int bytes_read = 0;
-  int is_str = 0;
   do {
+    int is_str = 0;
+
     char* token = malloc(sizeof(char));
     bytes_read = read(file_descriptor, token, 1);
 
     if (bytes_read > 0 && !is_whitespace(*token)) {
       if (isdigit(*token)) {
-        item_tmp_chars =
-            append_list(item_tmp_chars, create_int_node(atoi(token)));
-        is_str = 0;
+        item_tmp_chars = append_list(item_tmp_chars, create_char_node(*token));
       }
 
       if (isalpha(*token)) {
@@ -267,27 +293,48 @@ ReadOut* read_file_to_list(int file_descriptor) {
         is_str = 1;
       }
 
+      if ((isdigit(*token) || isalpha(*token)) && is_first) {
+        is_all_str = is_str;
+        is_first = 0;
+      }
+
       if (is_separator(*token)) {
-        // TODO: Check length and don't add if length is 0.
-        char* str = str_from_list(item_tmp_chars);
-        // printf("%s\n", str);
-        list_of_items = append_list(list_of_items, create_str_node(str));
-        item_tmp_chars = NULL;
+        if (item_tmp_chars != NULL) {
+          if (is_all_str) {
+            char* str = str_from_list(item_tmp_chars);
+            list_of_items = append_list(list_of_items, create_str_node(str));
+          } else {
+            char* str = str_from_list(item_tmp_chars);
+            list_of_items =
+                append_list(list_of_items, create_int_node(atoi(str)));
+          }
+
+          item_tmp_chars = NULL;
+        }
       }
 
       total_bytes_read += bytes_read;
     }
+
   } while (bytes_read > 0);
 
-  char* str = str_from_list(item_tmp_chars);
-  list_of_items = append_list(list_of_items, create_str_node(str));
-  item_tmp_chars = NULL;
-  // printf("%s\n", str);
+  if (item_tmp_chars != NULL) {
+    if (is_all_str) {
+      char* str = str_from_list(item_tmp_chars);
+      list_of_items = append_list(list_of_items, create_str_node(str));
+    } else {
+      char* str = str_from_list(item_tmp_chars);
+      list_of_items = append_list(list_of_items, create_int_node(atoi(str)));
+    }
 
-  ReadOut* ro = malloc(sizeof(ReadOut));
-  ro->ll = list_of_items;
-  ro->is_str = is_str;
-  return ro;
+    item_tmp_chars = NULL;
+  }
+
+  ReadFileOutput* out = malloc(sizeof(ReadFileOutput));
+  out->is_str = is_all_str;
+  out->list = list_of_items;
+
+  return out;
 }
 
 int main(int argc, char* argv[]) {
@@ -306,26 +353,22 @@ int main(int argc, char* argv[]) {
         concat(concat("Please enter a file name after `", sort_flag), "`."));
   }
 
-  ReadOut* ro = read_file_to_list(file_desc);
+  ReadFileOutput* out = read_file_to_list(file_desc);
+  Node* list = out->list;
 
-  Node* list = ro->ll;
-  int is_str = 1;
+  if (list == NULL) {
+    warning("File was empty.");
+  }
 
-  // TODO: Determine if string or int.
+  Comparator fn = out->is_str ? string_compare_node : int_compare_node;
 
-  Comparator fn = is_str ? string_compare : int_compare;
+  if (equal(sort_flag, "-q")) {
+    quicksort(&list, fn);
+  }
 
-  printf("%d\n", string_compare("real", "f"));
+  if (equal(sort_flag, "-i")) {
+    insertion_sort(&list, fn);
+  }
 
-  // if (equal(sort_flag, "-q")) {
-  //   quicksort(list, fn);
-  // }
-
-  // if (equal(sort_flag, "-i")) {
-  list = insertion_sort(list, fn);
-  // }
-
-  print_list(list);
-
-  return 0;
+  print_list(list, out->is_str);
 }
