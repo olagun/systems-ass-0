@@ -55,7 +55,7 @@ int string_compare(void* s1, void* s2) {
   }
 
   while (*(char*)s1 && *(char*)s2) {
-    int diff = *(char*)s1 - *(char*)s2;
+    int diff = tolower(*(char*)s1) - tolower(*(char*)s2);
     if (diff != 0) {
       return diff;
     }
@@ -67,8 +67,8 @@ int string_compare(void* s1, void* s2) {
     return 0;
   }
 
-  return *(char*)s1 ? *(char*)s1 : *(char*)s2;
-}
+  return *(char*)s1 ? tolower(*(char*)s1) : tolower(*(char*)s2);
+}c
 
 int string_compare_node(void* s1, void* s2) {
   return string_compare(((Node*)s1)->data.str_data, ((Node*)s2)->data.str_data);
